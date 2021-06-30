@@ -1,0 +1,1245 @@
+# Capstone 
+
+
+```python
+import pylab
+import calendar
+import numpy as np
+import pandas as pd
+import seaborn as sn
+from scipy import stats
+import matplotlib.pyplot as plt
+import warnings
+pd.options.mode.chained_assignment = None
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+%matplotlib inline
+sn.set_palette(palette="OrRd")
+```
+
+
+```python
+aisles = pd.read_csv('C:/Users/sandh/OneDrive/Desktop/insta cart data/aisles.csv')
+departments = pd.read_csv('C:/Users/sandh/OneDrive/Desktop/insta cart data/departments.csv')
+orderProductsTrain = pd.read_csv('C:/Users/sandh/OneDrive/Desktop/insta cart data/order_products__train.csv')
+orders = pd.read_csv('C:/Users/sandh/OneDrive/Desktop/insta cart data/orders.csv')
+products = pd.read_csv('C:/Users/sandh/OneDrive/Desktop/insta cart data/products.csv')
+orderProductsPrior = pd.read_csv('C:/Users/sandh/OneDrive/Desktop/insta cart data/order_products__prior.csv')
+```
+
+
+```python
+orders.head()
+products.head()
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>product_id</th>
+      <th>product_name</th>
+      <th>aisle_id</th>
+      <th>department_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>1</td>
+      <td>Chocolate Sandwich Cookies</td>
+      <td>61</td>
+      <td>19</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>2</td>
+      <td>All-Seasons Salt</td>
+      <td>104</td>
+      <td>13</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>3</td>
+      <td>Robust Golden Unsweetened Oolong Tea</td>
+      <td>94</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>4</td>
+      <td>Smart Ones Classic Favorites Mini Rigatoni Wit...</td>
+      <td>38</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>5</td>
+      <td>Green Chile Anytime Sauce</td>
+      <td>5</td>
+      <td>13</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+cnt_srs = orders.eval_set.value_counts()
+
+plt.figure(figsize=(12,8))
+sns.barplot(cnt_srs.index, cnt_srs.values, alpha=0.8, color='blue')
+plt.ylabel('Number of Occurrences', fontsize=12)
+plt.xlabel('Eval set type', fontsize=12)
+plt.title('Count of rows in each dataset', fontsize=15)
+plt.xticks(rotation='vertical')
+plt.show()
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_4_1.png)
+
+
+
+```python
+orderProductsPrior.head()
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>order_id</th>
+      <th>product_id</th>
+      <th>add_to_cart_order</th>
+      <th>reordered</th>
+      <th>product_name</th>
+      <th>aisle_id</th>
+      <th>department_id</th>
+      <th>aisle</th>
+      <th>department</th>
+      <th>add_to_cart_order_mod</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>2</td>
+      <td>33120</td>
+      <td>1</td>
+      <td>1</td>
+      <td>Organic Egg Whites</td>
+      <td>86</td>
+      <td>16</td>
+      <td>eggs</td>
+      <td>dairy eggs</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>2</td>
+      <td>28985</td>
+      <td>2</td>
+      <td>1</td>
+      <td>Michigan Organic Kale</td>
+      <td>83</td>
+      <td>4</td>
+      <td>fresh vegetables</td>
+      <td>produce</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>2</td>
+      <td>9327</td>
+      <td>3</td>
+      <td>0</td>
+      <td>Garlic Powder</td>
+      <td>104</td>
+      <td>13</td>
+      <td>spices seasonings</td>
+      <td>pantry</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2</td>
+      <td>45918</td>
+      <td>4</td>
+      <td>1</td>
+      <td>Coconut Butter</td>
+      <td>19</td>
+      <td>13</td>
+      <td>oils vinegars</td>
+      <td>pantry</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>2</td>
+      <td>30035</td>
+      <td>5</td>
+      <td>0</td>
+      <td>Natural Sweetener</td>
+      <td>17</td>
+      <td>13</td>
+      <td>baking ingredients</td>
+      <td>pantry</td>
+      <td>5</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+#### Maximum number of orders per client
+
+
+```python
+cnt_srs = orders.groupby("user_id")["order_number"].aggregate(np.max).reset_index()
+cnt_srs = cnt_srs.order_number.value_counts()
+
+plt.figure(figsize=(12,6))
+sns.barplot(cnt_srs.index, cnt_srs.values, alpha=0.18, color='')
+plt.ylabel('Number of Occurrences', fontsize=12)
+plt.xlabel('Maximum order number', fontsize=12)
+plt.xticks(rotation='vertical')
+plt.show()
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_7_1.png)
+
+
+### People order saturday and sunday the most
+
+
+```python
+fig,ax = plt.subplots()
+fig.set_size_inches(20,5)
+ordersDay = orders[["order_dow"]].replace({0:"Saturday",1:"Sunday",2:"Monday",3:"Tuesday",4:"Wednesday",5:"Thursday",6:"Friday"})
+
+sn.countplot(color="Blue",data=ordersDay,x="order_dow",ax=ax,order=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"])
+ax.set(xlabel='Day Of The Week',title="Order Count Across Days Of The Week")
+```
+
+
+
+
+    [Text(0.5, 0, 'Day Of The Week'),
+     Text(0.5, 1.0, 'Order Count Across Days Of The Week')]
+
+
+
+
+![png](output_9_1.png)
+
+
+### Majority of the orders made during the middle of the day
+
+
+```python
+plt.figure(figsize=(12,8))
+sns.countplot(x="order_hour_of_day", data=orders, color="green")
+plt.ylabel('Count', fontsize=12)
+plt.xlabel('Hour of day', fontsize=12)
+plt.xticks(rotation='vertical')
+plt.title("Frequency of order by hour of day", fontsize=15)
+plt.show()
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_11_1.png)
+
+
+### The busiest hours mid day, saturday and sunday
+
+
+```python
+grouped_df = orders.groupby(["order_dow", "order_hour_of_day"])["order_number"].aggregate("count").reset_index()
+grouped_df = grouped_df.pivot('order_dow', 'order_hour_of_day', 'order_number')
+
+plt.figure(figsize=(12,6))
+sns.heatmap(grouped_df)
+plt.title("Frequency of Day of week Vs Hour of day")
+plt.show()
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_13_1.png)
+
+
+### most amount of re orders occur on the 7th and the 30th day
+
+
+```python
+plt.figure(figsize=(12,8))
+sns.countplot(x="days_since_prior_order", data=orders, color='blue')
+plt.ylabel('Count', fontsize=12)
+plt.xlabel('Days since prior order', fontsize=12)
+plt.xticks(rotation='vertical')
+plt.title("Frequency distribution by days since prior order", fontsize=15)
+plt.show()
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_15_1.png)
+
+
+## lets us associate name with aisle and department numbers
+
+
+```python
+orderProductsPrior = pd.merge(orderProductsPrior, products, on='product_id', how='left')
+orderProductsPrior = pd.merge(orderProductsPrior, aisles, on='aisle_id', how='left')
+orderProductsPrior = pd.merge(orderProductsPrior, departments, on='department_id', how='left')
+orderProductsPrior.head()
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>order_id</th>
+      <th>product_id</th>
+      <th>add_to_cart_order</th>
+      <th>reordered</th>
+      <th>product_name</th>
+      <th>aisle_id</th>
+      <th>department_id</th>
+      <th>aisle</th>
+      <th>department</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>2</td>
+      <td>33120</td>
+      <td>1</td>
+      <td>1</td>
+      <td>Organic Egg Whites</td>
+      <td>86</td>
+      <td>16</td>
+      <td>eggs</td>
+      <td>dairy eggs</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>2</td>
+      <td>28985</td>
+      <td>2</td>
+      <td>1</td>
+      <td>Michigan Organic Kale</td>
+      <td>83</td>
+      <td>4</td>
+      <td>fresh vegetables</td>
+      <td>produce</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>2</td>
+      <td>9327</td>
+      <td>3</td>
+      <td>0</td>
+      <td>Garlic Powder</td>
+      <td>104</td>
+      <td>13</td>
+      <td>spices seasonings</td>
+      <td>pantry</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2</td>
+      <td>45918</td>
+      <td>4</td>
+      <td>1</td>
+      <td>Coconut Butter</td>
+      <td>19</td>
+      <td>13</td>
+      <td>oils vinegars</td>
+      <td>pantry</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>2</td>
+      <td>30035</td>
+      <td>5</td>
+      <td>0</td>
+      <td>Natural Sweetener</td>
+      <td>17</td>
+      <td>13</td>
+      <td>baking ingredients</td>
+      <td>pantry</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+orders.head()
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>order_id</th>
+      <th>user_id</th>
+      <th>eval_set</th>
+      <th>order_number</th>
+      <th>order_dow</th>
+      <th>order_hour_of_day</th>
+      <th>days_since_prior_order</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>2539329</td>
+      <td>1</td>
+      <td>prior</td>
+      <td>1</td>
+      <td>2</td>
+      <td>8</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>2398795</td>
+      <td>1</td>
+      <td>prior</td>
+      <td>2</td>
+      <td>3</td>
+      <td>7</td>
+      <td>15.0</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>473747</td>
+      <td>1</td>
+      <td>prior</td>
+      <td>3</td>
+      <td>3</td>
+      <td>12</td>
+      <td>21.0</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>2254736</td>
+      <td>1</td>
+      <td>prior</td>
+      <td>4</td>
+      <td>4</td>
+      <td>7</td>
+      <td>29.0</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>431534</td>
+      <td>1</td>
+      <td>prior</td>
+      <td>5</td>
+      <td>4</td>
+      <td>15</td>
+      <td>28.0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+```python
+aisles.head()
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>aisle_id</th>
+      <th>aisle</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>1</td>
+      <td>prepared soups salads</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>2</td>
+      <td>specialty cheeses</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>3</td>
+      <td>energy granola bars</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>4</td>
+      <td>instant foods</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>5</td>
+      <td>marinades meat preparation</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+### most amount of products ordered
+
+
+```python
+cnt_srs = orderProductsPrior['product_name'].value_counts().reset_index().head(20)
+cnt_srs.columns = ['product_name', 'frequency_count']
+cnt_srs
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>product_name</th>
+      <th>frequency_count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>Banana</td>
+      <td>472565</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Bag of Organic Bananas</td>
+      <td>379450</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Organic Strawberries</td>
+      <td>264683</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Organic Baby Spinach</td>
+      <td>241921</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Organic Hass Avocado</td>
+      <td>213584</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Organic Avocado</td>
+      <td>176815</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Large Lemon</td>
+      <td>152657</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Strawberries</td>
+      <td>142951</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>Limes</td>
+      <td>140627</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>Organic Whole Milk</td>
+      <td>137905</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Organic Raspberries</td>
+      <td>137057</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>Organic Yellow Onion</td>
+      <td>113426</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>Organic Garlic</td>
+      <td>109778</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>Organic Zucchini</td>
+      <td>104823</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>Organic Blueberries</td>
+      <td>100060</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>Cucumber Kirby</td>
+      <td>97315</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>Organic Fuji Apple</td>
+      <td>89632</td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td>Organic Lemon</td>
+      <td>87746</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td>Apple Honeycrisp Organic</td>
+      <td>85020</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>Organic Grape Tomatoes</td>
+      <td>84255</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+### shows the top aisles
+
+
+```python
+cnt_srs = orderProductsPrior['aisle'].value_counts().head(20)
+plt.figure(figsize=(12,8))
+sns.barplot(cnt_srs.index, cnt_srs.values, alpha=0.8, color='aqua')
+plt.ylabel('Number of Occurrences', fontsize=12)
+plt.xlabel('Aisle', fontsize=12)
+plt.xticks(rotation='vertical')
+plt.show()
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_23_1.png)
+
+
+### shows the largest department
+
+
+```python
+sns.set_style('darkgrid')
+plt.figure(figsize=(10,10))
+temp_series = orderProductsPrior['department'].value_counts()
+labels = (np.array(temp_series.index))
+sizes = (np.array((temp_series / temp_series.sum())*100))
+plt.pie(sizes, labels=labels, 
+        autopct='%1.1f%%', startangle=200)
+plt.title("Departments distribution", fontsize=15)
+plt.show()
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_25_1.png)
+
+
+### highest to lowest department ratio
+
+
+```python
+grouped_df = orderProductsPrior.groupby(["department"])["reordered"].aggregate("mean").reset_index()
+
+plt.figure(figsize=(12,8))
+sns.pointplot(grouped_df['department'].values, grouped_df['reordered'].values, alpha=0.8, color = 'red')
+plt.ylabel('Reorder ratio', fontsize=12)
+plt.xlabel('Department', fontsize=12)
+plt.title("Department wise reorder ratio", fontsize=15)
+plt.xticks(rotation='vertical')
+plt.show()
+
+```
+
+
+    <IPython.core.display.Javascript object>
+
+
+
+![png](output_27_1.png)
+
+
+
+```python
+grouped_df = orderProductsPrior.groupby(["department_id", "aisle"])["reordered"].aggregate("mean").reset_index()
+
+fig, ax = plt.subplots(figsize=(12,20))
+ax.scatter(grouped_df.reordered.values, grouped_df.department_id.values)
+for i, txt in enumerate(grouped_df.aisle.values):
+    ax.annotate(txt, (grouped_df.reordered.values[i], grouped_df.department_id.values[i]), rotation=45, ha='center', va='center', color='green')
+plt.xlabel('Reorder Ratio')
+plt.ylabel('department_id')
+plt.title("Reorder ratio of different aisles", fontsize=15)
+plt.show()
+```
+
+
+![png](output_28_0.png)
+
+
+### how many products do people buy in prior and train dataset
+
+
+```python
+fig,(ax1,ax2) = plt.subplots(nrows=2)
+fig.set_size_inches(20,15)
+orderCountsPrior = orderProductsPrior.groupby("order_id")["product_id"].count().to_frame()["product_id"].value_counts().to_frame()
+orderCountsPrior["count"] = orderCountsPrior["product_id"]
+orderCountsPrior["no_of_products"] = orderCountsPrior.index
+orderCountsTrain = orderProductsTrain.groupby("order_id")["product_id"].count().to_frame()["product_id"].value_counts().to_frame()
+orderCountsTrain["count"] = orderCountsTrain["product_id"]
+orderCountsTrain["no_of_products"] = orderCountsTrain.index
+sn.barplot(data=orderCountsTrain.head(50),x="no_of_products",y="count",ax=ax1,color="deeppink")
+sn.barplot(data=orderCountsPrior.head(50),x="no_of_products",y="count",ax=ax2,color="lightsalmon")
+ax1.set(xlabel='Order Count',title="Count Of Items People Buy In Train")
+ax2.set(xlabel='Order Count',title="Count Of Items People Buy In Prior")
+```
+
+
+
+
+    [Text(0.5, 0, 'Order Count'),
+     Text(0.5, 1.0, 'Count Of Items People Buy In Prior')]
+
+
+
+
+![png](output_30_1.png)
+
+
+### Top Reordered items
+
+
+```python
+productsCount = orderProductsTrain["product_id"].value_counts().to_frame()
+productsCount["count"] = productsCount.product_id
+productsCount["product_id"] = productsCount.index
+mergedData = pd.merge(productsCount,products,how="left",on="product_id").sort_values(by="count",ascending=False)
+productsCountReordered = orderProductsTrain[orderProductsTrain["reordered"]==1]["product_id"].value_counts().to_frame()
+productsCountReordered["reordered_count"] = productsCountReordered.product_id
+productsCountReordered["product_id"] = productsCountReordered.index
+productCountReorderedMerged = pd.merge(productsCount,productsCountReordered,how="left",on="product_id").sort_values(by="count",ascending=False)
+productCountReorderedMerged["reordered_ratio"] = productCountReorderedMerged["reordered_count"]/productCountReorderedMerged["count"]
+productCountReorderedMerged.sort_values(by="reordered_ratio",ascending=False,inplace=True)
+productMerged = pd.merge(productCountReorderedMerged,products,how="left",on="product_id")
+
+fig,ax = plt.subplots()
+fig.set_size_inches(25,10)
+sn.barplot(data=productMerged[productMerged["count"]>40].head(30),x="product_name",y="reordered_ratio",color="slateblue",ax=ax,orient="v")
+ax.set(xlabel='Product Names',ylabel="Count",title="Top Reordered Products")
+ax.set_ylim(0.85,.95)
+plt.xticks(rotation=90)
+
+productMerged.head(10)
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>product_id</th>
+      <th>count</th>
+      <th>reordered_count</th>
+      <th>reordered_ratio</th>
+      <th>product_name</th>
+      <th>aisle_id</th>
+      <th>department_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>43334</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Classics Hot Cocoa Mix Variety Pack</td>
+      <td>90</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>24324</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Vitamin B-12 1000 mcg</td>
+      <td>47</td>
+      <td>11</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>3171</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>Beef Raviolis Pasta in Meat Sauce</td>
+      <td>59</td>
+      <td>15</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>20611</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>3 Ply Wheat Straw Bath Tissue</td>
+      <td>54</td>
+      <td>17</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>47221</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>Premium Roast Decaf K Cup</td>
+      <td>26</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>98</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>2% Yellow American Cheese</td>
+      <td>2</td>
+      <td>16</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>28558</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>Organic Irish Breakfast Black Tea</td>
+      <td>94</td>
+      <td>7</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>27354</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>Authentic Asia Shrimp Wonton Soup With Noodles</td>
+      <td>38</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>9361</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>Healthy Indulgence Salmon &amp; Chicken Cat Food</td>
+      <td>41</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>26851</td>
+      <td>2</td>
+      <td>2.0</td>
+      <td>1.0</td>
+      <td>Chew-Lotta Long Lasting Chewbone Dog Snacks</td>
+      <td>40</td>
+      <td>8</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+![png](output_32_1.png)
+
+
+### First item placed in cart
+
+
+```python
+productsCountFirst = orderProductsTrain[orderProductsTrain["add_to_cart_order"]==1]["product_id"].value_counts().to_frame()
+productsCountFirst["reordered_count"] = productsCountFirst.product_id
+productsCountFirst["product_id"] = productsCountFirst.index
+productCountFirstMerged = pd.merge(productsCount,productsCountFirst,how="left",on="product_id").sort_values(by="count",ascending=False)
+productCountFirstMerged["first_ordered_ratio"] = productCountFirstMerged["reordered_count"]/productCountFirstMerged["count"]
+productCountFirstMerged.sort_values(by="first_ordered_ratio",ascending=False,inplace=True)
+firstMerged = pd.merge(productCountFirstMerged,products,how="left",on="product_id")
+
+
+fig,ax = plt.subplots()
+fig.set_size_inches(25,10)
+sn.barplot(data=firstMerged[firstMerged["count"]>10].head(30),x="product_name",y="first_ordered_ratio",color="lime",ax=ax,orient="v")
+ax.set(xlabel='Product Names',ylabel="Count",title="Top Reordered Products")
+ax.set_ylim(0.4,.7)
+plt.xticks(rotation=90)
+
+firstMerged.head(10)
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>product_id</th>
+      <th>count</th>
+      <th>reordered_count</th>
+      <th>first_ordered_ratio</th>
+      <th>product_name</th>
+      <th>aisle_id</th>
+      <th>department_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0</td>
+      <td>39239</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Singapore Street Classic Curry Noodles</td>
+      <td>66</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>4611</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Fair Trade Blackberry Premium Spread</td>
+      <td>88</td>
+      <td>13</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>34443</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Clary Sage Essential Oil</td>
+      <td>101</td>
+      <td>17</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>10665</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>3 cup Glass Tupperware with Lid</td>
+      <td>85</td>
+      <td>17</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>19740</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Daily Moisture Quench Beauty Bar Soap</td>
+      <td>127</td>
+      <td>11</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>10515</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>100% Pure Organic Maple Syrup Grade B Dark &amp; D...</td>
+      <td>29</td>
+      <td>13</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>14997</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Long Hammer IPA Beer</td>
+      <td>27</td>
+      <td>5</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>6433</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Raw Veggie Wrappers</td>
+      <td>13</td>
+      <td>20</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>1686</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Thai Style Spring Rolls with Sweet &amp; Sour Sauce</td>
+      <td>129</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>45697</td>
+      <td>1</td>
+      <td>1.0</td>
+      <td>1.0</td>
+      <td>Ultra Strong Hold Full Control Non-Aerosol Hai...</td>
+      <td>22</td>
+      <td>11</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+
+
+![png](output_34_1.png)
+
+
+
+```python
+# percentage of re-orders in prior set #
+orderProductsPrior.reordered.sum() / orderProductsPrior.shape[0]
+```
+
+
+
+
+    0.5896974667922161
+
+
+
+
+```python
+# percentage of re-orders in train set #
+orderProductsTrain.reordered.sum() / orderProductsTrain.shape[0]
+```
+
+
+
+
+    0.5985944127509629
+
+
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
+
+
+```python
+
+```
